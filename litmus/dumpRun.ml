@@ -129,7 +129,7 @@ end = struct
       fprintf chan "SHARED_LIB = $(SRCDIR)/shared_lib\n" ;
       fprintf chan "GCCOPTS += -I $(SHARED_LIB)\n\n"
     end ;
-    begin
+    (*begin
       match Cfg.mode with
       | Mode.Std|Mode.PreSi -> ()
       | Mode.Kvm ->
@@ -151,6 +151,9 @@ end = struct
            List.map (fun util -> "$(SHARED_LIB)/" ^ util) utils in
          fprintf chan "UTILS_SRC = %s\n\n"
            (String.concat " " shared_utils)
+    end ;*)
+    begin
+      fprintf chan "UTILS_SRC = $(wildcard $(SHARED_LIB)/*.c)\n\n"
     end ;
     begin
       fprintf chan "UTILS_OBJ = $(UTILS_SRC:.c=.o)\n\n"

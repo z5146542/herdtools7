@@ -177,6 +177,10 @@ module Make(O:Config)(Tar:Tar.S) =
     let cpy'_shared ?sub ?prf fnames src dst ext =
       do_cpy ?sub ?prf fnames ("_" ^ src) (shared_lib ^ dst) ext
 
+(* Copy lib file to shared library (used within C code generation) *)
+    let cpy_shared_gen ?sub ?prf fnames name ext =
+      do_cpy ?sub ?prf fnames name (shared_lib ^ name) ext
+
 (* Copy from platform subdirectory *)
     let cpy_platform fnames name ext =
       let name = sprintf "platform_%s" name in
@@ -202,10 +206,10 @@ module Make(O:Config)(Tar:Tar.S) =
     | Mac as os ->
         Warn.fatal "Affinity not implemented for %s" (TargetOS.pp os)
 
-    let dump flags =
-      (* Create shared library directory *)
-      let () = MySys.mkdirp (Tar.outname shared_lib) in
+(* Create shared library directory *)
+    let mk_shared_lib_dir = MySys.mkdirp (Tar.outname shared_lib)
 
+    let dump flags =
       let fnames = [] in
       let fnames = match O.driver with
       | Driver.Shell -> fnames
