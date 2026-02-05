@@ -126,8 +126,13 @@ end = struct
       fprintf chan "\n"
     end ;
     begin
-      fprintf chan "SHARED_LIB = $(SRCDIR)/shared_lib\n" ;
-      fprintf chan "GCCOPTS += -I $(SHARED_LIB)\n\n"
+      begin match Cfg.mode with
+        | Mode.Kvm -> ()
+        | Mode.Std | Mode.PreSi ->
+           fprintf chan "SRCDIR = $(CURDIR)/..\n"
+      end ;
+      fprintf chan "SHARED_SRC_DIR = $(SRCDIR)/shared_lib\n" ;
+      fprintf chan "GCCOPTS += -I $(SHARED_SRC_DIR)\n\n"
     end ;
     (*begin
       match Cfg.mode with
@@ -148,7 +153,7 @@ end = struct
              "auth.c"::utils
            else utils in
          let shared_utils =
-           List.map (fun util -> "$(SHARED_LIB)/" ^ util) utils in
+           List.map (fun util -> "$(SHARED_SRC_DIR)/" ^ util) utils in
          fprintf chan "UTILS_SRC = %s\n\n"
            (String.concat " " shared_utils)
     end ;*)
@@ -157,6 +162,8 @@ end = struct
     end ;
     begin
       fprintf chan "UTILS_OBJ = $(UTILS_SRC:.c=.o)\n\n"
+           (*(String.concat " " shared_utils) ;
+         fprintf chan "UTILS_OBJ = $(UTILS_SRC:.c=.o)\n\n"*)
     end ;
     ()
 
@@ -179,10 +186,11 @@ end = struct
             b :: k
           else k) utils [] in
     List.iter
-      (fun u ->
-        let src = u ^ ".c" and obj = u ^ ".o" in
+      (fun u -> 
+        let dir_name = if u = "topology" then "" else "$(SHARED_SRC_DIR)/" in
+        let src = dir_name ^ u ^ ".c" and obj = dir_name ^ u ^ ".o" in
         fprintf chan "%s: %s\n" obj src ;
-        fprintf chan "\t$(GCC) $(GCCOPTS) %s-O2 -c %s\n"
+        fprintf chan "\t$(GCC) $(GCCOPTS) %s-O2 -c -o $@ %s\n"
           (if
             TargetOS.is_freebsd Cfg.targetos &&
             u = "affinity"
@@ -193,7 +201,7 @@ end = struct
       utils ;
 (* UTIL objs *)
     let utils_objs =
-      String.concat " " (List.map (fun s -> s ^ ".o") utils) in
+      String.concat " " (List.map (fun s -> let dir_name = if s = "topology" then "" else "$(SHARED_SRC_DIR)/" in dir_name ^ s ^ ".o") utils) in
     fprintf chan "UTILS=%s\n\n" utils_objs ;
     ()
 ;;
