@@ -19,3 +19,6 @@ cleansource:
 %.flat: %.elf
 	$(OBJCOPY) -O  elf32-i386 $^ $@
 	@chmod a-x $@
+
+$(SHARED_SRC_DIR)/%.o: $(SHARED_SRC_DIR)/%.c
+	$(CC) $(GCCOPTS) -c -o $@ $<
