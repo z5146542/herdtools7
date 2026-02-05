@@ -129,36 +129,34 @@ end = struct
       begin match Cfg.mode with
         | Mode.Kvm -> ()
         | Mode.Std | Mode.PreSi ->
-           fprintf chan "SRCDIR = $(CURDIR)/..\n"
+           fprintf chan "SRCDIR = $(CURDIR)\n"
       end ;
-      fprintf chan "SHARED_SRC_DIR = $(SRCDIR)/shared_lib\n" ;
+      fprintf chan "SHARED_SRC_DIR = $(CURDIR)/lib\n" ;
       fprintf chan "GCCOPTS += -I $(SHARED_SRC_DIR)\n\n"
     end ;
-    (*begin
+    begin
       match Cfg.mode with
       | Mode.Std|Mode.PreSi -> ()
       | Mode.Kvm ->
          let utils =
-           ["litmus_rand.c"; "utils.c"; "kvm_timeofday.c";] in
+           ["litmus_rand.o"; "utils.o"; "kvm_timeofday.o";] in
          let utils =
            if Cfg.stdio then utils
            else
-             "platform_io.c" :: "litmus_io.c" :: utils in
+             "platform_io.o" :: "litmus_io.o" :: utils in
          let utils =
            if flags.Flags.memtag then
-             "memtag.c"::utils
+             "memtag.o"::utils
            else utils in
          let utils =
            if flags.Flags.pac then
-             "auth.c"::utils
+             "auth.o"::utils
            else utils in
-         let shared_utils =
-           List.map (fun util -> "$(SHARED_SRC_DIR)/" ^ util) utils in
-         fprintf chan "UTILS_SRC = %s\n\n"
-           (String.concat " " shared_utils)
-    end ;*)
+         fprintf chan "UTILS = %s\n\n"
+           (String.concat " " utils)
+    end ;
     begin
-      fprintf chan "UTILS_SRC = $(wildcard $(SHARED_LIB)/*.c)\n\n"
+      fprintf chan "UTILS_SRC = $(wildcard $(SHARED_SRC_DIR)/*.c)\n\n"
     end ;
     begin
       fprintf chan "UTILS_OBJ = $(UTILS_SRC:.c=.o)\n\n"
@@ -187,8 +185,7 @@ end = struct
           else k) utils [] in
     List.iter
       (fun u -> 
-        let dir_name = if u = "topology" then "" else "$(SHARED_SRC_DIR)/" in
-        let src = dir_name ^ u ^ ".c" and obj = dir_name ^ u ^ ".o" in
+        let src = u ^ ".c" and obj = u ^ ".o" in
         fprintf chan "%s: %s\n" obj src ;
         fprintf chan "\t$(GCC) $(GCCOPTS) %s-O2 -c -o $@ %s\n"
           (if
@@ -201,8 +198,8 @@ end = struct
       utils ;
 (* UTIL objs *)
     let utils_objs =
-      String.concat " " (List.map (fun s -> let dir_name = if s = "topology" then "" else "$(SHARED_SRC_DIR)/" in dir_name ^ s ^ ".o") utils) in
-    fprintf chan "UTILS=%s\n\n" utils_objs ;
+      String.concat " " (List.map (fun s -> s ^ ".o") utils) in
+    fprintf chan "UTILS = %s\n\n" utils_objs ;
     ()
 ;;
 
@@ -688,12 +685,12 @@ let dump_c_cont xcode arch flags sources utils nts =
             fprintf chan "\tsed -e 's|.c$$|.o|g' < src > obj\n\n"
           end ;
           let o1 =
-            if infile then "$(UTILS) obj run.o"
+            if infile then "$(UTILS) $(UTILS_OBJ) obj run.o"
             else "$(UTILS) $(OBJ) run.o" in
           let o2 =
-            if infile then "$(UTILS) @obj run.o"
+            if infile then "$(UTILS) $(UTILS_OBJ) @obj run.o"
             else o1 in
-          fprintf chan "$(EXE): %s\n" o1 ;
+          fprintf chan "$(EXE): %s\n" o1;
           fprintf chan "\t$(GCC)  $(GCCOPTS) $(LINKOPTS) -o $@ %s\n" o2 ;
           fprintf chan "\n" ;
           (* .o pattern rule *)

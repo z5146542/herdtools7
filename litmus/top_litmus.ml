@@ -283,7 +283,7 @@ end = struct
                   { Flags.pac = O.variant Variant_litmus.Pac;
                     Flags.self = O.variant Variant_litmus.Self;
                     Flags.memtag = O.variant Variant_litmus.MemTag } in
-                let () = Obj.mk_shared_lib_dir in
+                let () = Obj.mk_libdir in
                 dump src doc compiled;
                 if not OT.is_out then begin
                   let _utils = Obj.dump flags in

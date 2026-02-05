@@ -573,8 +573,8 @@ module Make
 
       let dump_barrier_def () =
         let fname =  sprintf "barrier%s" lab_ext in
-        (* let _ = Obj.cpy_shared_gen ~sub:arch_dir [] fname ".c" in *)
-        let _ = Obj.cpy_shared_gen ~sub:arch_dir [] fname ".h" in
+        let _ = Obj.do_cpy ~sub:arch_dir [] fname (Obj.libdir ^ fname) ".c" in
+        let _ = Obj.do_cpy ~sub:arch_dir [] fname (Obj.libdir ^ fname) ".h" in
         O.o "#include <barrier.h>" ;
         O.o ""
         (*Insert.insert O.o fname*)
