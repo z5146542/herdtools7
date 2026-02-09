@@ -197,6 +197,8 @@ end = struct
         fprintf chan "\n")
       utils ;
 (* UTIL objs *)
+    fprintf chan "$(SHARED_SRC_DIR)/%%.o: $(SHARED_SRC_DIR)/%%.c\n";
+    fprintf chan "\t$(GCC) $(GCCOPTS) -O2 -c -o $@ $<\n\n" ;
     let utils_objs =
       String.concat " " (List.map (fun s -> s ^ ".o") utils) in
     fprintf chan "UTILS = %s\n\n" utils_objs ;
@@ -494,9 +496,9 @@ let dump_shell_cont arch flags sources utils =
           | TargetOS.Linux|TargetOS.AIX
           | TargetOS.FreeBsd|TargetOS.Android8
             -> 's' in
-          fprintf chan "%%.exe:%%.%c $(UTILS)\n" src_ext ;
+          fprintf chan "%%.exe:%%.%c $(UTILS) $(UTILS_OBJ)\n" src_ext ;
           fprintf chan
-            "\t$(GCC) $(GCCOPTS) $(LINKOPTS) -o $@ $(UTILS) $<\n" ;
+            "\t$(GCC) $(GCCOPTS) $(LINKOPTS) -o $@ $(UTILS) $(UTILS_OBJ) $<\n" ;
           fprintf chan "\n" ;
 (* .s pattern rule *)
           fprintf chan "%%.s:%%.c\n" ;
@@ -686,7 +688,7 @@ let dump_c_cont xcode arch flags sources utils nts =
           end ;
           let o1 =
             if infile then "$(UTILS) $(UTILS_OBJ) obj run.o"
-            else "$(UTILS) $(OBJ) run.o" in
+            else "$(UTILS) $(UTILS_OBJ) $(OBJ) run.o" in
           let o2 =
             if infile then "$(UTILS) $(UTILS_OBJ) @obj run.o"
             else o1 in
