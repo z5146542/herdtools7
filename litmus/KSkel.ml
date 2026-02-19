@@ -47,6 +47,7 @@ module Make
      type instruction = A.instruction and
      type P.code = P.code and module A = A and module FaultType = A.FaultType)
     (O:Indent.S)
+    (DefO:Indent.S)
     (Lang:Language.S with type t = A.Out.t)
     : sig
       val dump : Name.t -> T.t -> unit
@@ -96,7 +97,7 @@ module Make
           let no_file = false
           let brittle = false
         end)(O)
-    module UD = U.Dump(O)(EPF)
+    module UD = U.Dump(O)(DefO)(EPF)
 
     let tag_malloc s = sprintf "malloc_%s" s
 

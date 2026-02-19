@@ -4,7 +4,7 @@
 /* Jade Alglave, University College London, UK.                             */
 /* Luc Maranget, INRIA Paris-Rocquencourt, France.                          */
 /*                                                                          */
-/* Copyright 2019-present Institut National de Recherche en Informatique et */
+/* Copyright 2020-present Institut National de Recherche en Informatique et */
 /* en Automatique and the authors. All rights reserved.                     */
 /*                                                                          */
 /* This software is governed by the CeCILL-B license under French law and   */
@@ -13,25 +13,7 @@
 /* license as circulated by CEA, CNRS and INRIA at the following URL        */
 /* "http://www.cecill.info". We also give a copy in LICENSE.txt.            */
 /****************************************************************************/
-/* Authors:                                                                 */
-/* Nikos Nikoleris, Arm Limited.                                            */
-/****************************************************************************/
-#include <presi-self.h>
+#include <instruction.h>
 
-void litmus_icache_sync(uintptr_t vaddr, uintptr_t vaddr_end)
-{
-  while (vaddr < vaddr_end) {
-    selfbar((void *)vaddr);
-    vaddr += cache_line_size;
-  }
-}
-
-size_t code_size(ins_t *p,int skip) {
-  return (find_ins(getret(), p, skip) + 1) * sizeof(ins_t);
-}
-
-void code_init(void *code, void *src, size_t sz)
-{
-  memcpy(code, src, sz);
-  litmus_icache_sync((uintptr_t)code, (uintptr_t)code + sz);
-}
+// Find index of some instruction in code, skipping 'skip' occurrences
+size_t find_ins(ins_t opcode,ins_t *p,int skip);

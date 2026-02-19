@@ -769,7 +769,7 @@ let dump_c_cont xcode arch flags sources utils nts =
                 let is_active = false
                 let inlined = false
               end in
-              let module Topo = Topology.Make(K)(O) in
+              let module Topo = Topology.Make(K)(O)(O) in
               O.o "" ;
               O.o "/***************/" ;
               O.f "/* nthreads=%d */" k ;

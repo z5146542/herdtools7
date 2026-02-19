@@ -84,7 +84,10 @@ module Make
      type instruction = A.instruction and
      type P.code = P.code and module A = A and module FaultType = A.FaultType)
     (O:Indent.S)
-    (Lang:Language.S with type t = A.Out.t) : sig
+    (DefO:Indent.S)
+    (Lang:Language.S with type t = A.Out.t)
+    (OO:ObjUtil.Config)
+    (Tar:Tar.S) : sig
       val dump : Name.t -> T.t -> unit
     end = struct
   module MakeLoc
@@ -98,6 +101,9 @@ module Make
       module C = T.C
       open Constant
       open CType
+
+(* ObjUtil (required for copying and pasting files to the relevant directory) *)
+      module Obj = ObjUtil.Make(OO)(Tar)
 
 (* Shared configuration *)
       module Param = SkelUtil.Param(Cfg)
@@ -294,13 +300,13 @@ module Make
             let no_file = false
             let brittle = false
           end)(O)
-      module UD = U.Dump(O)(EPF)
+      module UD = U.Dump(O)(DefO)(EPF)
 
 (* Inserted source *)
 
       module Insert = ObjUtil.Insert(Cfg)
 
-      let have_timebase = Insert.exists "timebase.c"
+      let have_timebase = Insert.exists "timebase.h"
 
       (* Location utilities *)
       let get_global_names t = List.map fst t.T.globals
@@ -398,29 +404,30 @@ module Make
 
 (* Test condition *)
 
-      let dump_header test =
+      let dump_header test doc =
         O.o "/* Parameters */" ;
+        O.f "#include \"%s_def.h\"" doc.Name.name ;
         let module D = DumpParams.Make(Cfg) in
-        D.dump O.o ;
+        D.dump DefO.o ;
         let n = T.get_nprocs test in
-        O.f "#define N %i" n ;
+        DefO.f "#define N %i" n ;
         if do_staticalloc then begin
           let nexe =
             match Cfg.avail  with
             | None -> 1
             | Some a -> if a < n then 1 else a / n in
-          O.f "#define NEXE %i" nexe ;
-          O.o "#define SIZE_OF_MEM (NEXE * SIZE_OF_TEST)" ;
-          O.o "#define SIZE_OF_ALLOC (NEXE * (SIZE_OF_TEST+1))" ;
+          DefO.f "#define NEXE %i" nexe ;
+          DefO.o "#define SIZE_OF_MEM (NEXE * SIZE_OF_TEST)" ;
+          DefO.o "#define SIZE_OF_ALLOC (NEXE * (SIZE_OF_TEST+1))" ;
         end ;
-        O.f "#define AFF_INCR (%i)"
+        DefO.f "#define AFF_INCR (%i)"
           (match affinity with
           | Affinity.Incr i -> i
           | Affinity.Random|Affinity.Custom|Affinity.Scan -> 0
           | Affinity.No -> -1) ;
         if do_timebase then begin
           let delta = sprintf "%i" Cfg.delay in
-          if have_timebase then O.f "#define DELTA_TB %s" delta
+          if have_timebase then DefO.f "#define DELTA_TB %s" delta
         end ;
         O.o "/* Includes */" ;
         Insert.insert_when_exists O.o "intrinsics.h" ;
@@ -481,8 +488,8 @@ module Make
         O.o "} param_t;" ;
         O.o"" ;
         if do_sync_macro then begin
-          O.f "#define SYNC_K %i" Cfg.syncconst ;
-          O.f "#define SYNC_N %i" sync_macro_n ;
+          DefO.f "#define SYNC_K %i" Cfg.syncconst ;
+          DefO.f "#define SYNC_N %i" sync_macro_n ;
           ()
         end ;
         ()
@@ -557,8 +564,8 @@ module Make
         if (do_verbose_barrier || do_timebase) && have_timebase then begin
           O.o "/* Read timebase */" ;
           O.o "typedef uint64_t tb_t ;" ;
-          O.o "#define PTB PRIu64" ;
-          Insert.insert O.o "timebase.c"
+          DefO.o "#define PTB PRIu64" ;
+          Insert.insert O.o "timebase.h"
         end
 
       let lab_ext = if do_numeric_labels then "" else "_lab"
@@ -672,8 +679,13 @@ module Make
           O.o ""
         end ;
         if do_self then begin
-          Insert.insert O.o "self.c" ;
-          O.o ""
+          let fname = "self" in
+          let _ = Obj.do_cpy [] fname (Obj.libdir ^ fname) ".c" in
+          let _ = Obj.do_cpy [] fname (Obj.libdir ^ fname) ".h" in
+          O.o ("#include <" ^ fname  ^ ".h>") ;
+          O.o "" ;
+          (* Insert.insert O.o "self.c" ;
+          O.o "" *)
         end
 
 
@@ -711,7 +723,7 @@ module Make
                   let mode = Mode.Std
                   let is_active = true
                   let inlined = true
-                end) (O) in
+                end) (O) (DefO) in
               ignore (Topo.dump_alloc [])
           end else
             UD.dump_topology_external n
@@ -961,7 +973,7 @@ module Make
           A.RLocSet.fold
             (fun rloc k -> nitems rloc + k)
             outs 0 in
-        O.f "#define NOUTS %i" nouts ;
+        DefO.f "#define NOUTS %i" nouts ;
         O.o "typedef intmax_t outcome_t[NOUTS];" ;
         O.o "" ;
         let _ =
@@ -1393,8 +1405,13 @@ module Make
             O.fx indent "_a->%s = %s(_a->%s,sizeof(*_a->%s));" a alg a a
         in
         if do_self || CfgLoc.need_prelude || U.label_in_outs env test then begin
-          ObjUtil.insert_lib_file O.o "_find_ins.c" ;
+          let fname = "_find_ins" in
+          let _ = Obj.do_cpy [] fname (Obj.libdir ^ fname) ".c" in
+          let _ = Obj.do_cpy [] fname (Obj.libdir ^ fname) ".h" in
+          O.o ("#include <" ^ fname  ^ ".h>") ;
           O.o "" ;
+          (*ObjUtil.insert_lib_file O.o "_find_ins.c" ;
+          O.o "" ;*)
           if do_self then begin
             O.o "static size_t code_size(ins_t *p,int skip) { return find_ins(getret(),p,skip)+1; }" ;
             O.o ""
@@ -2041,7 +2058,7 @@ module Make
         end ;
         O.o "} zyva_t;" ;
         O.o "" ;
-        O.f "#define NT %s" "N" ;
+        DefO.f "#define NT %s" "N" ;
         O.o "" ;
         O.o "static void *zyva(void *_va) {" ;
 (* Define local vars *)
@@ -2930,7 +2947,7 @@ module Make
             end) in
         let open MLoc in
         let env = U.build_env test in
-        dump_header test ;
+        dump_header test doc ;
         if U.label_in_outs env test then
           UD.dump_label_defs (T.all_labels test) ;
         UD.dump_getinstrs test ;

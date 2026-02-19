@@ -35,7 +35,7 @@ let active_tag (proc,a) = Printf.sprintf "act_%i_%s"  proc a
 
 type sz = { scanline : int; scansz  : int; }
 
-module Make(Cfg:Config) (O:Indent.S) : sig
+module Make(Cfg:Config) (O:Indent.S) (DefO:Indent.S): sig
   val dump_alloc : string list list -> sz
 end = struct
   open Cfg
@@ -328,8 +328,8 @@ let part pp_part maxelt maxpart k r =
     end ;
     let scansz = List.length all_gs in
     if inlined then begin
-      O.f "#define %s %i" "SCANSZ" scansz ;
-      O.f "#define %s %i" "SCANLINE" sz
+      DefO.f "#define %s %i" "SCANSZ" scansz ;
+      DefO.f "#define %s %i" "SCANLINE" sz
     end ;
     begin match Cfg.mode with
     | Mode.Std when inlined ->
@@ -403,7 +403,7 @@ let part pp_part maxelt maxpart k r =
       !r in
 
     if Cfg.is_active && List.exists (fun vs -> vs <> []) vss then begin
-      O.o "#define ACTIVE 1" ;
+      DefO.o "#define ACTIVE 1" ;
       O.o "typedef struct {" ;
       O.fi "int %s;"
         (String.concat ","

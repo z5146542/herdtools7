@@ -201,7 +201,7 @@ module Make
       val pp_cond : T.t -> string
 
 (* Dump stuff *)
-      module Dump : functor (O:Indent.S) -> functor(EPF:EmitPrintf.S) -> sig
+      module Dump : functor (O:Indent.S) -> functor (DefO:Indent.S) -> functor(EPF:EmitPrintf.S) -> sig
         (* Some small dump functions common std/presi *)
 
         val dump_mbar_def : unit -> unit
@@ -674,7 +674,7 @@ end
         and from_others = get_instrs_others t in
         from_code,from_others
 
-      module Dump (O:Indent.S) (EPF:EmitPrintf.S) = struct
+      module Dump (O:Indent.S) (DefO:Indent.S) (EPF:EmitPrintf.S) = struct
 
         let dump_mbar_def () =
           if Cfg.c11 && Cfg.sysarch = `Unknown then begin
@@ -778,12 +778,12 @@ end
           end
 
         let dump_label_defs lbls =
-          O.f "#define %-25s  0" (instr_symb_id "UNKNOWN") ;
+          DefO.f "#define %-25s  0" (instr_symb_id "UNKNOWN") ;
           (* Define indices for labels *)
           List.iteri
             (fun i (p,lbl) ->
                let flbl = OutUtils.fmt_lbl_var p lbl in
-               O.f "#define %-25s  %d" (instr_symb_id flbl) (i + 1))
+               DefO.f "#define %-25s  %d" (instr_symb_id flbl) (i + 1))
             lbls ;
           O.o "" ;
           O.f "static const char *instr_symb_name[] = {" ;
@@ -879,7 +879,7 @@ end
 
         let postlude doc test affi show_topos stats =
           let t = if Cfg.exit_cond then "int" else "void" in
-          O.o "#define ENOUGH 10" ;
+          DefO.o "#define ENOUGH 10" ;
           O.o "" ;
           begin match Cfg.mode with
           | Mode.Std ->
@@ -1098,7 +1098,7 @@ end
             O.o "/***************************/" ;
             O.o "/* Get instruction opcodes */" ;
             O.o "/***************************/" ;
-            O.o "" ;
+            O.o "" ; (* TODO: at some point, nop is a common instruction, so this should be separated and not declared static *)
             A.V.Instr.Set.iter
               (fun i -> D.dump i ; O.o "")
               is ;
@@ -1195,14 +1195,14 @@ end
           let open Mode in
           begin match Cfg.mode with
           | PreSi|Kvm ->
-             O.f "#define inst inst_%d" n ;
-             O.f "#define role role_%d" n ;
+             DefO.f "#define inst inst_%d" n ;
+             DefO.f "#define role role_%d" n ;
           | Std ->
-             O.f "#define cpu_scan cpu_scan_%d" n
+             DefO.f "#define cpu_scan cpu_scan_%d" n
           end ;
-          O.f "#define group group_%d" n;
-          O.f "#define SCANSZ scansz_%d" n ;
-          O.f "#define SCANLINE scanline_%d" n ;
+          DefO.f "#define group group_%d" n;
+          DefO.f "#define SCANSZ scansz_%d" n ;
+          DefO.f "#define SCANLINE scanline_%d" n ;
           begin match Cfg.mode with
           | Mode.Std  ->
              O.o "static count_t ngroups[SCANSZ];"
