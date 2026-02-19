@@ -1,0 +1,1 @@
+#define MAX_FAULTS_PER_THREAD 8
