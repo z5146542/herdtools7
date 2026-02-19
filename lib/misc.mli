@@ -205,7 +205,6 @@ val dump_symbolic : string -> string
    Channel chan is closed, even if f raises an exception.
    The exception is re-raised *)
 val output_protect : (out_channel -> 'a) -> string -> 'a
-val output_protect_two : (out_channel -> out_channel -> 'a) -> string -> string -> 'a
 
 (* Idem for input, raises Fatal msg if file cannot be opened *)
 val input_protect : (in_channel -> 'a) -> string -> 'a

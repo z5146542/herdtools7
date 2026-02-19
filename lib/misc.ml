@@ -476,23 +476,6 @@ let output_protect_gen o f name =
   close_out chan ;
   y
 
-let output_protect_gen_two o f name1 name2 =
-  let chan1 =
-    try o name1
-    with Sys_error msg ->
-      eprintf "open_out failed: %s\n" msg ; flush stderr ;
-      try open_out "/dev/null" with Sys_error _ -> assert false in
-  let chan2 =
-    try o name2
-    with Sys_error msg ->
-      eprintf "open_out failed: %s\n" msg ; flush stderr ;
-      try open_out "/dev/null" with Sys_error _ -> assert false in
-  let y =
-    try f chan1 chan2 with e -> close_out chan1 ; close_out chan2 ; raise e in
-  close_out chan1 ;
-  close_out chan2 ;
-  y
-
 let input_protect_gen o f name =
   let chan =
     try o name
@@ -506,7 +489,6 @@ let input_protect_gen o f name =
   y
 
 let output_protect f name = output_protect_gen open_out f name
-let output_protect_two f name1 name2 = output_protect_gen_two open_out f name1 name2
 let input_protect f name = input_protect_gen open_in f name
 
 

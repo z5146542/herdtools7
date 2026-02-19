@@ -84,7 +84,6 @@ module Make
      type instruction = A.instruction and
      type P.code = P.code and module A = A and module FaultType = A.FaultType)
     (O:Indent.S)
-    (DefO:Indent.S)
     (Lang:Language.S with type t = A.Out.t)
     (OO:ObjUtil.Config)
     (Tar:Tar.S) : sig
@@ -300,7 +299,7 @@ module Make
             let no_file = false
             let brittle = false
           end)(O)
-      module UD = U.Dump(O)(DefO)(EPF)
+      module UD = U.Dump(O)(EPF)
 
 (* Inserted source *)
 
@@ -404,30 +403,29 @@ module Make
 
 (* Test condition *)
 
-      let dump_header test doc =
+      let dump_header test =
         O.o "/* Parameters */" ;
-        O.f "#include \"%s_def.h\"" doc.Name.name ;
         let module D = DumpParams.Make(Cfg) in
-        D.dump DefO.o ;
+        D.dump O.o ;
         let n = T.get_nprocs test in
-        DefO.f "#define N %i" n ;
+        O.f "#define N %i" n ;
         if do_staticalloc then begin
           let nexe =
             match Cfg.avail  with
             | None -> 1
             | Some a -> if a < n then 1 else a / n in
-          DefO.f "#define NEXE %i" nexe ;
-          DefO.o "#define SIZE_OF_MEM (NEXE * SIZE_OF_TEST)" ;
-          DefO.o "#define SIZE_OF_ALLOC (NEXE * (SIZE_OF_TEST+1))" ;
+          O.f "#define NEXE %i" nexe ;
+          O.o "#define SIZE_OF_MEM (NEXE * SIZE_OF_TEST)" ;
+          O.o "#define SIZE_OF_ALLOC (NEXE * (SIZE_OF_TEST+1))" ;
         end ;
-        DefO.f "#define AFF_INCR (%i)"
+        O.f "#define AFF_INCR (%i)"
           (match affinity with
           | Affinity.Incr i -> i
           | Affinity.Random|Affinity.Custom|Affinity.Scan -> 0
           | Affinity.No -> -1) ;
         if do_timebase then begin
           let delta = sprintf "%i" Cfg.delay in
-          if have_timebase then DefO.f "#define DELTA_TB %s" delta
+          if have_timebase then O.f "#define DELTA_TB %s" delta
         end ;
         O.o "/* Includes */" ;
         Insert.insert_when_exists O.o "intrinsics.h" ;
@@ -488,8 +486,8 @@ module Make
         O.o "} param_t;" ;
         O.o"" ;
         if do_sync_macro then begin
-          DefO.f "#define SYNC_K %i" Cfg.syncconst ;
-          DefO.f "#define SYNC_N %i" sync_macro_n ;
+          O.f "#define SYNC_K %i" Cfg.syncconst ;
+          O.f "#define SYNC_N %i" sync_macro_n ;
           ()
         end ;
         ()
@@ -564,7 +562,7 @@ module Make
         if (do_verbose_barrier || do_timebase) && have_timebase then begin
           O.o "/* Read timebase */" ;
           O.o "typedef uint64_t tb_t ;" ;
-          DefO.o "#define PTB PRIu64" ;
+          O.o "#define PTB PRIu64" ;
           Insert.insert O.o "timebase.h"
         end
 
@@ -723,7 +721,7 @@ module Make
                   let mode = Mode.Std
                   let is_active = true
                   let inlined = true
-                end) (O) (DefO) in
+                end) (O) in
               ignore (Topo.dump_alloc [])
           end else
             UD.dump_topology_external n
@@ -973,7 +971,7 @@ module Make
           A.RLocSet.fold
             (fun rloc k -> nitems rloc + k)
             outs 0 in
-        DefO.f "#define NOUTS %i" nouts ;
+        O.f "#define NOUTS %i" nouts ;
         O.o "typedef intmax_t outcome_t[NOUTS];" ;
         O.o "" ;
         let _ =
@@ -2058,7 +2056,7 @@ module Make
         end ;
         O.o "} zyva_t;" ;
         O.o "" ;
-        DefO.f "#define NT %s" "N" ;
+        O.f "#define NT %s" "N" ;
         O.o "" ;
         O.o "static void *zyva(void *_va) {" ;
 (* Define local vars *)
@@ -2947,7 +2945,7 @@ module Make
             end) in
         let open MLoc in
         let env = U.build_env test in
-        dump_header test doc ;
+        dump_header test ;
         if U.label_in_outs env test then
           UD.dump_label_defs (T.all_labels test) ;
         UD.dump_getinstrs test ;

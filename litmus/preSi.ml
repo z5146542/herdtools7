@@ -62,7 +62,6 @@ module Make
      and module A = A
      and module FaultType = A.FaultType)
     (O:Indent.S)
-    (DefO:Indent.S)
     (Lang:Language.S with type t = A.Out.t)
     (OO:ObjUtil.Config)
     (Tar:Tar.S)
@@ -184,7 +183,7 @@ module Make
       end
 
       module U = SkelUtil.Make(UCfg)(P)(A)(T)
-      module UD = U.Dump(O)(DefO)(EPF)
+      module UD = U.Dump(O)(EPF)
       module PU = SkelUtil.PteValUtil(A.V.PteVal)
 
       let arch_dir = 
@@ -215,37 +214,36 @@ module Make
 (***************)
       module DP = DumpParams.Make(Cfg)
 
-      let dump_header test doc =
+      let dump_header test =
         O.o "/* Parameters */" ;
-        O.f "#include \"%s_def.h\"" doc.Name.name ;
-        DefO.o "#define OUT 1" ;
-        DP.dump DefO.o ;
+        O.o "#define OUT 1" ;
+        DP.dump O.o ;
         let n = T.get_nprocs test in
-        DefO.f "#define N %i" n ;
+        O.f "#define N %i" n ;
         let nvars = List.length test.T.globals in
-        DefO.f "#define NVARS %i" nvars ;
+        O.f "#define NVARS %i" nvars ;
         let nexe =
           match Cfg.avail  with
           | None -> 1
           | Some a -> if a < n then 1 else a / n in
-        DefO.f "#define NEXE %i" nexe ;
-        DefO.f "#define NTHREADS %i" (nexe*n) ;
-        DefO.f "#define NOCCS %i" Cfg.noccs ;
+        O.f "#define NEXE %i" nexe ;
+        O.f "#define NTHREADS %i" (nexe*n) ;
+        O.f "#define NOCCS %i" Cfg.noccs ;
         if have_timebase then begin
           let delta = sprintf "%i" Cfg.delay in
-          if have_timebase then DefO.f "#define DELTA_TB %s" delta
+          if have_timebase then O.f "#define DELTA_TB %s" delta
         end ;
         O.o "/* Includes */" ;
-        if do_dynalloc then DefO.o "#define DYNALLOC 1" ;
-        if do_stats then DefO.o "#define STATS 1" ;
+        if do_dynalloc then O.o "#define DYNALLOC 1" ;
+        if do_stats then O.o "#define STATS 1" ;
         if Cfg.is_kvm then begin
-          DefO.o "#define KVM 1" ;
+          O.o "#define KVM 1" ;
           O.o "#include <libcflat.h>" ;
           O.o "#include \"kvm-headers.h\"" ;
           O.o "#include \"utils.h\"" ;
           if not Cfg.stdio then begin
             O.o "#include \"litmus_io.h\"" ;
-            DefO.o "#define NOSTDIO 1"
+            O.o "#define NOSTDIO 1"
           end ;
         end else begin
           O.o "#include <stdlib.h>" ;
@@ -259,7 +257,7 @@ module Make
             O.o "#include <stdio.h>"
           end else begin
             O.o "#include \"litmus_io.h\"" ;
-            DefO.o "#define NOSTDIO 1"
+            O.o "#define NOSTDIO 1"
           end ;
           O.o "#include \"litmus_rand.h\"" ;
           O.o "#include \"utils.h\"" ;
@@ -289,12 +287,12 @@ module Make
         O.o "#include \"cache.h\"" ;
         O.o "" ;
         O.o "typedef uint32_t count_t;" ;
-        DefO.o "#define PCTR PRIu32" ;
+        O.o "#define PCTR PRIu32" ;
         O.o "" ;
         begin match Cfg.timelimit with
         | None -> ()
         | Some t ->
-            DefO.f "#define TIMELIMIT %4.2f" t
+            O.f "#define TIMELIMIT %4.2f" t
         end ;
         O.o "" ;
         ()
@@ -307,8 +305,8 @@ module Make
 
       let dump_delay_def () =
         if have_timebase then begin
-          DefO.f "#define NSTEPS %i" nsteps ;
-          DefO.f "#define NSTEPS2 ((NSTEPS-1)/2)" ;
+          O.f "#define NSTEPS %i" nsteps ;
+          O.f "#define NSTEPS2 ((NSTEPS-1)/2)" ;
         end
 
 
@@ -320,9 +318,9 @@ module Make
       let dump_read_timebase () =
         if have_timebase then begin
           O.o "/* Read timebase */" ;
-          DefO.o "#define HAVE_TIMEBASE 1" ;
+          O.o "#define HAVE_TIMEBASE 1" ;
           O.o "typedef uint64_t tb_t ;" ;
-          DefO.o "#define PTB PRIu64" ;
+          O.o "#define PTB PRIu64" ;
           let fname = if Cfg.is_kvm && Insert.exists "kvm_timebase.h" then "kvm_timebase" else "timebase" in
           let _ = Obj.do_cpy [] fname (Obj.libdir ^ fname) ".h" in
           O.o ("#include <" ^ fname ^ ".h>") ;
@@ -402,7 +400,7 @@ module Make
           begin match no with
           | _::_ ->
              O.o "/* Fault Handling */" ;
-             DefO.o "#define HAVE_FAULT_HANDLER 1" ;
+             O.o "#define HAVE_FAULT_HANDLER 1" ;
              O.o "" ;
              O.o "typedef struct { int instance,proc; } who_t;" ;
              O.o "" ;
@@ -433,10 +431,10 @@ module Make
                let open Fault.Handling in
                match Cfg.precision with
                | Fatal ->
-                  DefO.o "#define PRECISE 1" ;
+                  O.o "#define PRECISE 1" ;
                   O.o ""
                | Skip ->
-                  DefO.o "#define FAULT_SKIP 1" ;
+                  O.o "#define FAULT_SKIP 1" ;
                   O.o ""
                | Handled -> ()
              end ;
@@ -472,7 +470,7 @@ module Make
                       O.o "static vars_t *vars_ptr[NEXE];"
                   end
              | _::_ ->
-                DefO.o "#define SEE_FAULTS 1" ;
+                O.o "#define SEE_FAULTS 1" ;
                 O.o "" ;
                 begin match CfgLoc.all_labels with
                 | [] -> if do_precise then insert_ins_ops ()
@@ -722,7 +720,7 @@ module Make
               let mode = if Cfg.is_kvm then Mode.Kvm else Mode.PreSi
               let is_active = is_active
               let inlined = true
-            end) (O) (DefO) in
+            end) (O) in
           ignore (Topo.dump_alloc (get_addrs test))
         end else
           UD.dump_topology_external n
@@ -756,15 +754,15 @@ module Make
       let data_zero =  SkelUtil.data_symb_id pp_data_zero
 
       let dump_data_indices test =
-        DefO.f "#define %-25s  0" data_unknown ;
-        DefO.f "#define %-25s  1" data_zero ;
+        O.f "#define %-25s  0" data_unknown ;
+        O.f "#define %-25s  1" data_zero ;
         (* Define indices for data *)
         List.iteri
           (fun k (a,_) ->
             let idx = 1 + if Cfg.is_kvm then 2*k else k in
-            DefO.f "#define %-25s  %i" (SkelUtil.data_symb_id a) (idx+1);
+            O.f "#define %-25s  %i" (SkelUtil.data_symb_id a) (idx+1);
             if Cfg.is_kvm then begin
-                DefO.f "#define %-25s  %i"
+                O.f "#define %-25s  %i"
                   (SkelUtil.data_symb_id (Misc.add_pte a)) (idx+2)
               end)
           test.T.globals ;
@@ -851,7 +849,7 @@ module Make
               O.fi "size_t %s;" (fmt_code_size p))
             (Misc.interval 0 nprocs) in
         if some_vars test then begin
-          DefO.o "#define SOME_VARS 1" ;
+          O.o "#define SOME_VARS 1" ;
           O.o "typedef struct {" ;
           dump_vars_loc test.T.globals ;
           if do_self then dump_vars_code (T.get_nprocs test) ;
@@ -906,7 +904,7 @@ module Make
         if some_ptr_pte || do_see_faults_with_loc then begin
           (* To log actual pointers *)
           if some_ptr_pte then begin
-            DefO.o "#define SOME_PTR 1" ;
+            O.o "#define SOME_PTR 1" ;
             O.o "typedef struct {" ;
             A.RLocSet.iter
               (fun rloc ->
@@ -1337,7 +1335,7 @@ module Make
           c_tags ;
         O.o "};" ;
         O.o "";
-        DefO.o "#define PARSESZ (sizeof(parse)/sizeof(parse[0]))" ;
+        O.o "#define PARSESZ (sizeof(parse)/sizeof(parse[0]))" ;
         O.o "";
 (* Print *)
         if do_stats then begin
@@ -1403,7 +1401,7 @@ module Make
                 rlocs 0 in
             hash_size sz in
         let hashsz = 1+List.fold_left (fun k _ -> 2*k) hashsz faults in
-        DefO.f "#define HASHSZ %i" hashsz ;
+        O.f "#define HASHSZ %i" hashsz ;
         O.o "" ;
         let fname = "_hash" in
         let _ = Obj.do_cpy [] fname (Obj.libdir ^ fname) ".h" in
@@ -1481,15 +1479,15 @@ module Make
         O.f "/* %s line */"
           (if Cfg.is_kvm then "Page size" else "Cache line") ;
         if Cfg.is_kvm then begin
-          DefO.o "#define LINE LITMUS_PAGE_SIZE" ;
+          O.o "#define LINE LITMUS_PAGE_SIZE" ;
         end else begin
           let nvars = List.length test.T.globals in
           let voff =
             Misc.max_int (MachSize.nbytes MachSize.Quad) (U.max_align test) in
           let needed = voff*nvars in (* bytes needed *)
           let line = Cfg.line + Cfg.line * ((needed-1)/Cfg.line) in
-          DefO.f "#define LINE %i" line ;
-          DefO.f "#define VOFF %d" voff ;
+          O.f "#define LINE %i" line ;
+          O.f "#define VOFF %d" voff ;
         end ;
         O.o "" ;
         if some_vars test || do_self then begin
@@ -2324,11 +2322,11 @@ module Make
       let dump_main_def doc _env test stats =
         begin match Cfg.driver with
         | Driver.Shell ->
-            DefO.o "#define RUN run" ;
-            DefO.o "#define MAIN 1" ;
+            O.o "#define RUN run" ;
+            O.o "#define MAIN 1" ;
         | Driver.C|Driver.XCode ->
-            DefO.f "#define RUN %s" (MyName.as_symbol doc) ;
-            DefO.f "#define PRELUDE 1" ;
+            O.f "#define RUN %s" (MyName.as_symbol doc) ;
+            O.f "#define PRELUDE 1" ;
             ()
         end ;
         O.o "" ;
@@ -2379,7 +2377,7 @@ module Make
         let db = DirtyBit.get test.T.info
         and procs_user = ProcsUser.get test.T.info in
         ObjUtil.insert_lib_file O.o "header.txt" ;
-        dump_header test doc ;
+        dump_header test ;
         UD.dump_getinstrs test ;
         dump_delay_def () ;
         dump_read_timebase () ;

@@ -199,20 +199,17 @@ end = struct
           { t with MiscParser.info = info; }
         with Not_found -> t
 
-      let dump source source_def doc compiled =
+      let dump source doc compiled =
         let outname = Tar.outname source in
-        let def_outname = Tar.outname source_def in
         try
-          Misc.output_protect_two
-            (fun chan1 chan2 ->
+          Misc.output_protect
+            (fun chan ->
               let module Out =
-                Indent.Make(struct let hexa = O.hexa let out = chan1 end) in
-              let module DefOut =
-                Indent.Make(struct let hexa = O.hexa let out = chan2 end) in
+                Indent.Make(struct let hexa = O.hexa let out = chan end) in
               let dump =
                 match OT.mode with
                 | Mode.Std ->
-                    let module S = Skel.Make(O)(Pseudo)(A')(T)(Out)(DefOut)(Lang)(OO)(Tar) in
+                    let module S = Skel.Make(O)(Pseudo)(A')(T)(Out)(Lang)(OO)(Tar) in
                     S.dump
                 | Mode.PreSi|Mode.Kvm ->
                     let module O =
@@ -226,12 +223,12 @@ end = struct
                         | Barrier.TimeBase  -> true
                         | _ -> false
                       end  in
-                    let module S = PreSi.Make(O)(Pseudo)(A')(T)(Out)(DefOut)(Lang)(OO)(Tar) in
+                    let module S = PreSi.Make(O)(Pseudo)(A')(T)(Out)(Lang)(OO)(Tar) in
                     S.dump in
               dump doc compiled)
-            outname def_outname
+            outname
         with e ->
-          begin try Sys.remove outname ; Sys.remove def_outname with _ -> () end ;
+          begin try Sys.remove outname with _ -> () end ;
           raise e
 
       let check_variant v a =
@@ -282,13 +279,12 @@ end = struct
                 let allocated = allocate parsed in
                 let compiled = compile doc allocated in
                 let src = MyName.outname name ".c" in
-                let src_def = MyName.outname (name ^ "_def") ".h" in
                 let flags =
                   { Flags.pac = O.variant Variant_litmus.Pac;
                     Flags.self = O.variant Variant_litmus.Self;
                     Flags.memtag = O.variant Variant_litmus.MemTag } in
                 let () = Obj.mk_libdir in
-                dump src src_def doc compiled;
+                dump src doc compiled;
                 if not OT.is_out then begin
                   let _utils = Obj.dump flags in
                   ()

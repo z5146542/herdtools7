@@ -91,7 +91,7 @@ module Top(O:Config)(Tar:Tar.S) = struct
             (fun chan ->
               let module Out =
                 Indent.Make(struct let hexa = O.hexa let out = chan end) in
-              let module S = KSkel.Make(O)(Pseudo)(A)(MemType)(T)(Out)(Out)(Lang) in
+              let module S = KSkel.Make(O)(Pseudo)(A)(MemType)(T)(Out)(Lang) in
               S.dump doc compiled)
             outname
         with e ->
