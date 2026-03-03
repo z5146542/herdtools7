@@ -1302,7 +1302,11 @@ module Make
 (* Define *)
         O.o "typedef enum { cignore, cflush, ctouch, cmax, } dir_t;" ;
         O.o "" ;
-        O.o "typedef struct {" ;
+        let fname = "param" in
+        let _ = Obj.do_cpy [] fname (Obj.libdir ^ fname) ".h" in
+        O.o ("#include <" ^ fname ^ ".h>") ;
+        O.o "" ;
+        (*O.o "typedef struct {" ;
         O.oi "int part;" ;
         let pp_tags t = function
           | [] -> ()
@@ -1315,14 +1319,16 @@ module Make
         O.f "static param_t param = {%s};"
           (String.concat " "
              (List.map (fun _ -> "-1,") all_tags)) ;
-        O.o "" ;
+        O.o "" ;*)
+        O.o "static param_t *param = param_static_get();" ;
         O.o "static int id(int x) { return x; }" ;
         if have_timebase && T.get_nprocs test > 1 then
           O.o "static int addnsteps(int x) { return x+NSTEPS2; }" ;
         O.o "" ;
         O.o "static parse_param_t parse[] = {" ;
-        O.oi "{\"part\",&param.part,id,SCANSZ}," ;
-        let pp_tags f =
+        O.oi "{\"part\",&param_get_part(param),id,SCANSZ}," ;
+        (* O.oi "{\"part\",&param.part,id,SCANSZ}," ; *)
+        (*let pp_tags f =
           List.iter (fun tag -> O.fi "%s," (f tag)) in
         pp_tags
           (fun tag -> sprintf "{\"%s\",&param.%s,id,NVARS}" tag tag)
@@ -1332,7 +1338,7 @@ module Make
           d_tags ;
         pp_tags
           (fun tag -> sprintf "{\"%s\",&param.%s,id,cmax}" tag tag)
-          c_tags ;
+          c_tags ;*)
         O.o "};" ;
         O.o "";
         O.o "#define PARSESZ (sizeof(parse)/sizeof(parse[0]))" ;
@@ -1350,10 +1356,14 @@ module Make
           and params =
             List.map
               (fun tag ->
-                sprintf
-                  (if is_delay tag then "p->%s-NSTEPS2" else "p->%s")
-                  tag)
-              all_tags  in
+                sprintf 
+                  (if Misc.string_eq tag "part" then
+                    if is_delay tag then "param_get_%s(p)-NSTEPS2"
+                    else "param_get_%s(p)"
+                  else
+                    if is_delay tag then "param_get_tag(p, %s)-NSTEPS2"
+                    else "param_get_tag(p, %s)") tag) all_tags in
+
           EPF.fi fmt params ;
           O.o "}" ;
           O.o "" ;
@@ -1976,7 +1986,7 @@ module Make
           O.ox nid "_ok = 1;" ;
           if do_stats then begin
             O.ox nid
-              "(void)__sync_add_and_fetch(&_g->stats.groups[_p->part],1);" ;
+              "(void)__sync_add_and_fetch(&_g->stats.groups[param_get_part(_p)],1);" ;
             let open SkelUtil in
             List.iter
               (fun {tags; name; _} ->
