@@ -28,10 +28,12 @@ HERD_REGRESSION_TEST          = _build/default/internal/herd_regression_test.exe
 HERD_DIYCROSS_REGRESSION_TEST = _build/default/internal/herd_diycross_regression_test.exe
 HERD_CATALOGUE_REGRESSION_TEST = _build/default/internal/herd_catalogue_regression_test.exe
 HERD_ASSUMPTIONS_TEST		  = _build/default/internal/herd_assumptions_test.exe
-BENTO                         = _build/default/tools/bento.exe
 ASLREF                        = _build/default/asllib/aslref.exe
 CHECK_OBS                     = _build/default/internal/check_obs.exe
 all: build
+
+CATA_HERD_TEST_MODE := $(if $(ALL_TESTS), ,-fast)
+HERD_CATALOGUE_REGRESSION_TEST += $(CATA_HERD_TEST_MODE)
 
 .PHONY: Version.ml
 Version.ml:
@@ -83,12 +85,7 @@ dune-test:
 	@ echo
 	dune runtest --profile=$(DUNE_PROFILE)
 
-.PHONY: dune-no-missing-file-in-runt
-test:: dune-no-missing-file-in-runt
-dune-no-missing-file-in-runt:
-	asllib/tests/check-no-missing-file-in-run.sh ./
-
-test:: test.aarch64assumptions
+test-all:: test.aarch64assumptions
 test-local:: test.aarch64assumptions
 test.aarch64assumptions:
 	@ echo
@@ -684,6 +681,18 @@ test.vmsa+mte:
 		$(REGRESSION_TEST_MODE)
 	@ echo "herd7 AArch64 VMSA+MTE instructions tests: OK"
 
+test:: test.vmsa+ifetch
+test-local:: test.vmsa+ifetch
+test.vmsa+ifetch:
+	@ echo
+	$(HERD_REGRESSION_TEST) \
+		-herd-path $(HERD) \
+		-libdir-path ./herd/libdir \
+		-litmus-dir ./herd/tests/instructions/AArch64.vmsa+ifetch \
+		-conf ./herd/tests/instructions/AArch64.vmsa+ifetch/vmsa+ifetch.cfg \
+		$(REGRESSION_TEST_MODE)
+	@ echo "herd7 AArch64 VMSA+ifetch instructions tests: OK"
+
 ### Diy tests, includes
 ### - A `diy7` with `cycleonly` instance checks the cycle generations
 ### - Several `diycross7` + `herd7` instances, check if the generated litmus tests
@@ -965,8 +974,8 @@ clean-asl-pseudocode:
 
 .PHONY: asldoc
 asldoc: Version.ml
-	@ dune build -j $(J) --profile $(DUNE_PROFILE) $(BENTO) $(ASLREF)
-	@ $(MAKE) $(MFLAGS) -C asllib/doc all BENTO=$(CURDIR)/$(BENTO) ASLREF=$(CURDIR)/$(ASLREF)
+	@ dune build -j $(J) --profile $(DUNE_PROFILE) $(ASLREF)
+	@ $(MAKE) $(MFLAGS) -C asllib/doc all ASLREF=$(CURDIR)/$(ASLREF)
 
 .PHONY: clean-asldoc
 clean-asldoc:
@@ -978,6 +987,13 @@ type-check-asl: Version.ml
 	@ dune build -j $(J) --profile $(DUNE_PROFILE) $(ASLREF)
 	@ $(MAKE) $(MFLAGS) -C herd/libdir/asl-pseudocode type-check ASLREF=$(CURDIR)/$(ASLREF)
 	@ echo "ASLRef type-checking of published Arm ASL code: OK"
+
+.PHONY: dune-no-missing-file-in-runt
+test:: dune-no-missing-file-in-runt
+dune-no-missing-file-in-runt:
+	@ echo
+	asllib/tests/check-no-missing-file-in-run.sh ./
+	@ echo "no missing file in run.t"
 
 RUN_TESTS?=false
 $(V).SILENT:
